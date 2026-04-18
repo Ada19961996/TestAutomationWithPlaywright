@@ -5,7 +5,6 @@ import { delay } from 'rxjs/operators'
  test.beforeEach( async ({page}) =>{
     await page.goto('http://localhost:4200/')
 })
-    
 
 test.describe('test suite 2', () => {
     test.beforeEach( async ({page}) =>{
@@ -47,8 +46,6 @@ test('the radio buttons test', async ({page}) =>{
     
 })
 
-
-
 })
 
 test.describe('test suite 2', () => {
@@ -71,7 +68,6 @@ test('the checkboxes test', async ({page}) =>{
     }
     
 })
-
 
 })
 
@@ -120,4 +116,91 @@ test('the tooltip test', async ({page}) =>{
     expect(tooltip).toEqual("This is a tooltip")
     
 })
+
+test('the dialog boxes test', async ({page}) =>{
+    await page.getByText('Tables & Data').click()
+    await page.getByText('Smart Table').click()
+
+    page.on('dialog', dialog =>{
+        expect(dialog.message()).toEqual("Are you sure yo want to delete?")
+        dialog.accept()
+    })
+
+    await page.getByRole("table").locator("tr", {hasText: 'mdo@gmail.com'}).locator('.nb-trash').click()
+    await expect(page.locator("table tr").first()).not.toHaveText('mdo@gmail.com')
+})
+
+test('the web tables test', async ({page}) =>{
+    await page.getByText('Tables & Data').click()
+    await page.getByText('Smart Table').click()
+
+    const targetRow = page.getByRole("row", {name: 'snow@gmail.com'})
+    await targetRow.locator('.nb-edit').click()
+    await page.locator('input-editor').getByPlaceholder("Age").clear()
+    await page.locator('input-editor').getByPlaceholder("Age").fill("35")
+    await page.locator(".nb-checkmark").click()
+
+    // get row based on value in specific column
+    
+    await page.locator('.ng2-smart-pagination-nav').getByText('2').click()
+    const targetRowById = page.getByRole("row", {name: '11'}).filter({has: page.locator('td').nth(1).getByText('11')})
+    await targetRowById.locator('.nb-edit').click()
+    await page.locator('input-editor').getByPlaceholder("Age").clear()
+    await page.locator('input-editor').getByPlaceholder("Age").fill("35")
+    await page.locator(".nb-checkmark").click()
+    await expect(targetRowById.locator('td').nth(5)).toHaveText('mark@gmail.com')
+
+    // filter data in table
+    const ages = ["20", "30", "40", "200"]
+
+    for(let age of ages){
+        await page.locator('input-filter').getByPlaceholder('Age').clear()
+        await page.locator('input-filter').getByPlaceholder('Age').fill(age)
+        await page.waitForTimeout(500)
+        const ageRows = page.locator('tbody tr')
+        
+
+        for(let row of await ageRows.all()){
+            const cellValue = await row.locator('td').last().textContent()
+            
+            if(age == "200"){
+                expect(page.getByRole("table")).toContainText("No data found")
+                
+            }else(
+                expect(cellValue).toEqual(age)
+            )
+        }
+
+    }
+
+})
+
+test('the datepicker test', async ({page}) =>{
+    await page.getByText('Forms').click()
+    await page.getByText('Datepicker').click()
+
+    const calendarInputField = page.getByPlaceholder('Form Picker')
+    await calendarInputField.click()
+
+    let date = new Date()
+    date.setDate(date.getDate() +1)
+    const expectedDate = date.getDate().toString()
+    const expectedMonthShort = date.toLocaleString("En-US", {month: 'short'})
+    const expectedMonthLong = date.toLocaleString("En-US", {month: 'long'})
+    const expectedYear = date.getFullYear()
+    const dateToAssert = `${expectedMonthShort} ${expectedDate}, ${expectedYear}`
+
+    let calendarMonthAndYear = await page.locator('nb-calendar-view-mode').textContent()
+    const expectedMonthAndYear = `${expectedMonthLong} ${expectedYear}`
+
+    while(!calendarMonthAndYear?.includes(expectedMonthAndYear)){
+        await page.locator('nb-calendar-pageable-navigation [data-name="chevron-right"]').click()
+        calendarMonthAndYear = await page.locator('nb-calendar-view-mode').textContent()
+    }
+
+    await page.locator('[class="day-cell ng-star-inserted"]').getByText(expectedDate, {exact: true}).click()
+    await expect(calendarInputField).toHaveValue(dateToAssert)
+
+})
+
 
